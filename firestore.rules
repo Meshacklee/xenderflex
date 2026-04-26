@@ -1,0 +1,85 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+             (request.auth.token.email == 'fastinsms.com@gmail.com' || 
+              exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Shipments ---
+    match /shipments/{shipmentId} {
+      function isValidShipment(data) {
+        return (data.get('trackingId', '') is string) &&
+               (data.get('senderEmail', '') is string) &&
+               (data.get('recipientEmail', '') is string) &&
+               (data.get('status', 'PENDING') is string) &&
+               (data.get('status', 'PENDING') in ['PENDING', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED']) &&
+               (data.get('weight', '') is string) &&
+               (data.get('isApproved', false) is bool);
+      }
+
+      // Public tracking lookup
+      allow get: if true; // Publicly accessible via ID
+      allow list: if isAdmin(); // Only admins can list all shipments
+
+      allow create: if isAdmin() &&
+                       isValidShipment(incoming()) &&
+                       isValidId(shipmentId) &&
+                       incoming().trackingId == shipmentId;
+
+      allow update: if isAdmin() &&
+                       incoming().get('trackingId', '') == existing().get('trackingId', '') &&
+                       incoming().get('createdAt', '') == existing().get('createdAt', '');
+
+      allow delete: if isAdmin();
+    }
+
+    // --- History subcollection ---
+    match /shipments/{shipmentId}/history/{historyId} {
+       allow read: if true;
+       allow write: if isAdmin();
+    }
+
+    // --- Contact Inquiries ---
+    match /contact_inquiries/{inquiryId} {
+      function isValidInquiry(data) {
+        return (data.get('firstName', '') is string) && (data.get('firstName', '').size() > 0) &&
+               (data.get('lastName', '') is string) && (data.get('lastName', '').size() > 0) &&
+               (data.get('email', '') is string) && (data.get('email', '').matches('^.+@.+$')) &&
+               (data.get('companyName', '') is string) &&
+               (data.get('comments', '') is string) &&
+               (data.get('createdAt', request.time) == request.time);
+      }
+
+      allow create: if isValidInquiry(incoming());
+      allow get, list, update, delete: if isAdmin();
+    }
+  }
+}

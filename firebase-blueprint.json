@@ -1,0 +1,66 @@
+{
+  "entities": {
+    "shipment": {
+      "title": "Shipment",
+      "description": "Represents a tracked file transfer or physical shipment placeholder.",
+      "type": "object",
+      "properties": {
+        "trackingId": { "type": "string", "description": "Unique tracking identifier" },
+        "senderEmail": { "type": "string", "format": "email" },
+        "recipientEmail": { "type": "string", "format": "email" },
+        "origin": { "type": "string" },
+        "destination": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"] },
+        "currentLocation": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" },
+        "estimatedDelivery": { "type": "string", "format": "date-time" },
+        "weight": { "type": "string", "description": "Used if describing physical or virtual size" },
+        "isApproved": { "type": "boolean", "description": "Whether the admin has approved this shipment" },
+        "files": { "type": "array", "description": "Metadata of files in this shipment" },
+        "adminId": { "type": "string" }
+      },
+      "required": ["trackingId", "senderEmail", "recipientEmail", "status"]
+    },
+    "history": {
+      "title": "Tracking History",
+      "description": "Activity logs for a shipment.",
+      "type": "object",
+      "properties": {
+        "shipmentId": { "type": "string" },
+        "status": { "type": "string" },
+        "location": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "message": { "type": "string" }
+      },
+      "required": ["shipmentId", "status", "timestamp"]
+    },
+    "contact_inquiry": {
+      "title": "Contact Inquiry",
+      "description": "Form submission from the contact page",
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "companyName": { "type": "string" },
+        "comments": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["firstName", "lastName", "email", "companyName", "comments"]
+    }
+  },
+  "firestore": {
+    "shipments": {
+      "schema": "shipment",
+      "description": "Collection of all shipments."
+    },
+    "shipments/{shipmentId}/history": {
+      "schema": "history",
+      "description": "Changelog for a specific shipment."
+    },
+    "contact_inquiries": {
+      "schema": "contact_inquiry",
+      "description": "Submissions from the contact form."
+    }
+  }
+}
